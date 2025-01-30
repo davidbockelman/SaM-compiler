@@ -38,6 +38,11 @@ public class BaliCompiler
 		}		
 	}
 
+	/*
+	 * Parses METH_DECL non-terminal.
+	 * Production:
+	 * METH_DECL  -> TYPE ID '(' FORMALS? ')' BODY
+	 */
 	static String getMethodDeclaration(SamTokenizer f)
 	{
 		//TODO: add code to convert a method declaration to SaM code.

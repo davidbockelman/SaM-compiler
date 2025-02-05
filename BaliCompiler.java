@@ -146,7 +146,7 @@ public class BaliCompiler
 		String prologue = "ADDSP " + num_locals + "\n";
 		String fEnd_label = "fEnd" + labelCount++;
 		String epilogue = "STOREOFF " + symbol_table.get("return") + "\n" + "ADDSP -" + num_locals + "\n" + "JUMPIND\n";
-		if (f.peekAtKind() != TokenType.EOF && !f.test('}'))
+		while (f.peekAtKind() != TokenType.EOF && !f.test('}'))
 		{
 			stmts += getStatement(f, symbol_table, fEnd_label);
 		}
@@ -258,12 +258,14 @@ public class BaliCompiler
 						// '('
 						f.check('(');
 						// EXP
-						getExp(f, symbol_table);
+						c = getExp(f, symbol_table);
 						// ')'
 						f.check(')');
 						// STMT
-						getStatement(f, symbol_table, fEnd_label);
-						break;
+						s1 = getStatement(f, symbol_table, fEnd_label);
+						l1 = "L" + labelCount++;
+						l2 = "L" + labelCount++;
+						return l1 + ":\n" + c + "ISNIL\n" + "JUMPC " + l2 + "\n" + s1 + "JUMP " + l1 + "\n" + l2 + ":\n";
 					case "break":
 						// STMT -> break ';'
 						// consume the break
@@ -272,24 +274,26 @@ public class BaliCompiler
 						f.check(';');
 						break;
 					default:
+						// already consumed the location
+						f.pushBack();
 						// STMT -> ASSIGN ';'
-						getAssignment(f);
+						String assign = getAssignment(f, symbol_table);
 						// ';'
 						if (!f.check(';'))
 						{
 							System.out.println("Fatal error: could not compile program");
 							return "STOP\n";
 						}
-						break;
+						return assign;
 				}
 				break;
 		
-			case CHARACTER:
+			case OPERATOR:
 				// BLOCK, ';'
 				if (f.test('{')) 
 				{
 					// STMT -> BLOCK
-					getBlock(f);
+					return getBlock(f, symbol_table, fEnd_label);
 				} 
 				else 
 				{
@@ -301,19 +305,50 @@ public class BaliCompiler
 		return null;
 	}
 
-	static String getBlock(SamTokenizer f)
+	/*
+	 * Parses BLOCK non-terminal.
+	 * Production:
+	 * BLOCK -> '{' STMT* '}'
+	 */
+	static String getBlock(SamTokenizer f, HashMap<String, Integer> symbol_table, String fEnd_label)
 	{
-		return null;
+		// '{'
+		f.check('{');
+		// STMT*
+		String stmts = "";
+		while (f.peekAtKind() != TokenType.EOF && !f.test('}'))
+		{
+			stmts += getStatement(f, symbol_table, fEnd_label);
+		}
+		// '}'
+		f.check('}');
+		return stmts;
 	}
 
-	static String getAssignment(SamTokenizer f)
+	/*
+	 * Parses ASSIGN non-terminal.
+	 * Production:
+	 * ASSIGN -> LOCATION '=' EXP
+	 */
+	static String getAssignment(SamTokenizer f, HashMap<String, Integer> symbol_table)
 	{
-		return null;
+		// LOCATION
+		String location = getLocation(f);
+		// '='
+		f.check('=');
+		// EXP
+		String exp = getExp(f, symbol_table);
+		return exp + "STOREOFF " + symbol_table.get(location) + "\n";
 	}
 
+	/*
+	 * Parses LOCATION non-terminal.
+	 * Production:
+	 * LOCATION -> ID
+	 */
 	static String getLocation(SamTokenizer f)
 	{
-		return null;
+		return getId(f);
 	}
 
 	static String getMethod(SamTokenizer f)
@@ -517,7 +552,7 @@ public class BaliCompiler
 	 */
 	static String getId(SamTokenizer f)
 	{
-		if (f.peekAtKind() == TokenType.WORD) 
+		if (f.peekAtKind() == TokenType.WORD || f.peekAtKind() == TokenType.CHARACTER)
 		{
 			return f.getWord();
 		}

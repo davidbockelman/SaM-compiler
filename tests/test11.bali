@@ -2,13 +2,14 @@
 
 int main()
 {
-    int a = 9;
-    int b = 8;
-    if ((a > 4)) 
-        return 2;
-    else
-        return foo(a,b);
-    
+    int c = 0;
+    int i = 0;
+    while ((i < 10))
+    {
+        c = (c + i);
+        i = (i + 1);
+    }
+    return c;
 }
 
 int foo(int a, int b) {

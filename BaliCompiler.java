@@ -677,13 +677,12 @@ public class BaliCompiler
 
 	public static void main(String[] args) {
 		if (args.length != 2) {
-            System.err.println("Usage: java BaliCompiler <filename> <outputfile>");
+            System.err.println("Usage: java -jar compiler.jar <filename> <outputfile>");
             System.exit(1);
         }
 
         String filename = args[0];
 		String outputfile = args[1];
-        System.out.println("Processing file: " + filename);
 		String pgm = compiler(filename);
 		if (exit_code == 1)
 		{
@@ -691,7 +690,6 @@ public class BaliCompiler
 		}
 		try (FileWriter writer = new FileWriter(outputfile)) { // Overwrites the file
             writer.write(pgm);
-            System.out.println(outputfile + " written successfully.");
         } catch (IOException e) {
             e.printStackTrace();
         }

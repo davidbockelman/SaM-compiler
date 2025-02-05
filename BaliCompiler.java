@@ -27,15 +27,11 @@ public class BaliCompiler
 			return "STOP\n";
 		}
 	}
+
 	/*
 	 * Parses PROGRAM non-terminal.
 	 * Production:
 	 * PROGRAM -> METH_DECL*
-	 * PUSHIMM 0 //rv slot for main
-		LINK //save FBR
-		JSR main //call main
-		POPFBR
-		STOP
 	 */
 	static String getProgram(SamTokenizer f)
 	{
@@ -132,9 +128,6 @@ public class BaliCompiler
 	 * Parses BODY non-terminal.
 	 * Production:
 	 * BODY -> '{' VAR_DECL* STMT* '}'
-	 * STOREOFF n: Pop TOS and write value into
-		location Stack[FBR+n]
-
 	 */
 	static String getBody(SamTokenizer f, HashMap<String, Integer> symbol_table)
 	{
@@ -246,16 +239,18 @@ public class BaliCompiler
 						// '('
 						f.check('(');
 						// EXP
-						getExp(f, symbol_table);
+						String c = getExp(f, symbol_table);
 						// ')'
 						f.check(')');
 						// STMT
-						getStatement(f, symbol_table, fEnd_label);
+						String s1 = getStatement(f, symbol_table, fEnd_label);
 						// else
 						f.check("else");
 						// STMT
-						getStatement(f, symbol_table, fEnd_label);
-						break;
+						String s2 = getStatement(f, symbol_table, fEnd_label);
+						String l1 = "L" + labelCount++;
+						String l2 = "L" + labelCount++;
+						return c + "JUMPC " + l1 + "\n" + s2 + "JUMP " + l2 + "\n" + l1 + ":\n" + s1 + l2 + ":\n";
 					case "while":
 						// STMT -> while '(' EXP ')' STMT
 						// consume the while

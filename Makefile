@@ -7,6 +7,7 @@ TESTS = tests
 EXECUTABLE = BaliCompiler
 OUTPUT = output.sam
 INTERPRETER = edu/cornell/cs/sam/ui/SamText
+SUBMISSION = compiler.jar
 
 # Ensure the bin directory exists
 $(BIN):
@@ -39,6 +40,10 @@ run: $(BIN)/$(EXECUTABLE).class
 # Run the SaM interpreter on the output file
 interpret: $(BIN)/$(INTERPRETER).class $(OUTPUT)
 	$(JAVA) -cp $(CLASSPATH):$(BIN) $(INTERPRETER) $(OUTPUT)
+
+# Create a submission jar
+submission: $(BIN)/$(EXECUTABLE).class
+	jar cvfe $(SUBMISSION) $(EXECUTABLE) -C $(BIN) .
 
 # Clean compiled files
 clean:

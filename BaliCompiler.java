@@ -42,7 +42,7 @@ public class BaliCompiler
 		try
 		{
 			String pgm="";
-			if(f.peekAtKind()!=TokenType.EOF)
+			while(f.peekAtKind()!=TokenType.EOF)
 			{
 				pgm += getMethodDeclaration(f);
 			}
@@ -364,13 +364,17 @@ public class BaliCompiler
 					// '('
 					f.check('(');
 					// ACTUALS?
-					if (f.test("int"))
+					String actuals = "";
+					int[] num_actuals = {0};
+					if (!f.test(')'))
 					{
-						getActuals(f);
+						actuals += getActuals(f, symbol_table, num_actuals);
 					}
 					// ')'
 					f.check(')');
-					return null;
+					String call_preamble = "PUSHIMM 0\n";
+					String call_postamble = "LINK\nJSR " + reference + "\nPOPFBR\nADDSP -" + num_actuals[0] + "\n";
+					return call_preamble + actuals + call_postamble;
 				}
 				// EXP -> LOCATION
 				int fbr_offset = symbol_table.get(reference);
@@ -398,7 +402,7 @@ public class BaliCompiler
 			f.check('!');
 			exp = getExp(f, symbol_table);
 			f.check(')');
-			return exp + "PUSHIMM 1\n" + "CMP\n";
+			return exp + "NOT\n";
 		}
 		
 		// EXP
@@ -412,55 +416,71 @@ public class BaliCompiler
 				f.check(')');
 				return exp + exp2 + "ADD\n";
 			case '-':
-				getExp(f, symbol_table);
+				exp2 = getExp(f, symbol_table);
 				// ')'
 				f.check(')');
-				break;
+				return exp + exp2 + "SUB\n";
 			case '*':
-				getExp(f, symbol_table);
+				exp2 = getExp(f, symbol_table);
 				// ')'
 				f.check(')');
-				break;
+				return exp + exp2 + "TIMES\n";
 			case '/':
-				getExp(f, symbol_table);
+				exp2 = getExp(f, symbol_table);
 				// ')'
 				f.check(')');
-				break;
+				return exp + exp2 + "DIV\n";
 			case '&':
-				getExp(f, symbol_table);
+				exp2 = getExp(f, symbol_table);
 				// ')'
 				f.check(')');
-				break;
+				return exp + exp2 + "AND\n";
 			case '|':
-				getExp(f, symbol_table);
+				exp2 = getExp(f, symbol_table);
 				// ')'
 				f.check(')');
-				break;
+				return exp + exp2 + "OR\n";
 			case '<':
-				getExp(f, symbol_table);
+				exp2 = getExp(f, symbol_table);
 				// ')'
 				f.check(')');
-				break;
+				return exp + exp2 + "LESS\n";
 			case '>':
-				getExp(f, symbol_table);
+				exp2 = getExp(f, symbol_table);
 				// ')'
 				f.check(')');
-				break;
+				return exp + exp2 + "GREATER\n";
 			case '=':
-				getExp(f, symbol_table);
+				exp2 = getExp(f, symbol_table);
 				// ')'
 				f.check(')');
-				break;
-			case ')':
-			// unary operator
-				break;
+				return exp + exp2 + "EQUAL\n";
+			default:
+			// error
+				return null;
 		}
-		return null;
 	}
 
-	static String getActuals(SamTokenizer f)
+	/*
+	 * Parses ACTUALS non-terminal.
+	 * Production:
+	 * ACTUALS -> EXP (',' EXP)*
+	 */
+	static String getActuals(SamTokenizer f, HashMap<String, Integer> symbol_table, int[] num_actuals)
 	{
-		return null;
+		num_actuals[0] = 0;
+		// EXP
+		String exp = getExp(f, symbol_table);
+		num_actuals[0]++;
+		while (f.test(',')) 
+		{
+			// consume the comma
+			f.check(',');
+			// EXP
+			exp += getExp(f, symbol_table);
+			num_actuals[0]++;
+		}
+		return exp;
 	}
 
 	/*

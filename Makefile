@@ -5,6 +5,8 @@ SRC = BaliCompiler.java
 BIN = bin
 TESTS = tests
 EXECUTABLE = BaliCompiler
+OUTPUT = output.sam
+INTERPRETER = edu/cornell/cs/sam/ui/SamText
 
 # Ensure the bin directory exists
 $(BIN):
@@ -14,11 +16,16 @@ $(BIN):
 $(BIN)/$(EXECUTABLE).class: $(SRC) | $(BIN)
 	$(JAVAC) -cp $(CLASSPATH) -d $(BIN) $(SRC)
 
+# Compile SaM Interpreter
+$(BIN)/$(INTERPRETER).class: $(BIN) $(CLASSPATH)/$(INTERPRETER).java $(CLASSPATH)/edu/cornell/cs/sam/core/SamAssembler.java
+	$(JAVAC) -cp $(CLASSPATH) -d $(BIN) $(CLASSPATH)/$(INTERPRETER).java
+	$(JAVAC) -cp $(CLASSPATH) -d $(BIN) $(CLASSPATH)/edu/cornell/cs/sam/core/instructions/*.java 
+
 # Run BaliCompiler on all test files in tests/
 run-all: $(BIN)/$(EXECUTABLE).class
 	@for file in $(TESTS)/*; do \
 		echo "Running BaliCompiler on $$file..."; \
-		$(JAVA) -cp $(CLASSPATH):$(BIN) $(EXECUTABLE) $$file; \
+		$(JAVA) -cp $(CLASSPATH):$(BIN) $(EXECUTABLE) $$file $(OUTPUT); \
 	done
 
 # Run a specific test file (requires TEST=<filename>)
@@ -27,7 +34,11 @@ run: $(BIN)/$(EXECUTABLE).class
 		echo "Usage: make run TEST=<filename>"; \
 		exit 1; \
 	fi
-	$(JAVA) -cp $(CLASSPATH):$(BIN) $(EXECUTABLE) $(TESTS)/$(TEST)
+	$(JAVA) -cp $(CLASSPATH):$(BIN) $(EXECUTABLE) $(TESTS)/$(TEST) $(OUTPUT)
+
+# Run the SaM interpreter on the output file
+interpret: $(BIN)/$(INTERPRETER).class $(OUTPUT)
+	$(JAVA) -cp $(CLASSPATH):$(BIN) $(INTERPRETER) $(OUTPUT)
 
 # Clean compiled files
 clean:

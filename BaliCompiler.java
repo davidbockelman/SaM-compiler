@@ -1,6 +1,8 @@
 import java.lang.reflect.Array;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.io.FileWriter;
+import java.io.IOException;
 
 import edu.cornell.cs.sam.io.SamTokenizer;
 import edu.cornell.cs.sam.io.Tokenizer;
@@ -12,7 +14,6 @@ public class BaliCompiler
 
 	static String compiler(String fileName) 
 	{
-		System.out.println("compiler");
 		//returns SaM code for program in file
 		try 
 		{
@@ -26,18 +27,27 @@ public class BaliCompiler
 			return "STOP\n";
 		}
 	}
-
+	/*
+	 * Parses PROGRAM non-terminal.
+	 * Production:
+	 * PROGRAM -> METH_DECL*
+	 * PUSHIMM 0 //rv slot for main
+		LINK //save FBR
+		JSR main //call main
+		POPFBR
+		STOP
+	 */
 	static String getProgram(SamTokenizer f)
 	{
-		System.out.println("getProgram");
 		try
 		{
 			String pgm="";
 			if(f.peekAtKind()!=TokenType.EOF)
 			{
-				pgm+= getMethodDeclaration(f);
+				pgm += getMethodDeclaration(f);
 			}
-			return pgm;
+			String call_main = "PUSHIMM 0\n" + "LINK\n" + "JSR main\n" + "POPFBR\n" + "STOP\n";
+			return call_main + pgm;
 		}
 		catch(Exception e)
 		{
@@ -61,7 +71,6 @@ public class BaliCompiler
 		}
 		// ID
 		String methodName = getId(f); 
-		System.out.println("Method Name: " + methodName);
 		// '(' FORMALS? ')'
 		if (!f.check ('(')) // must be an opening parenthesis
 		{
@@ -75,7 +84,6 @@ public class BaliCompiler
 			getFormals(f, formals_names);
 		}
 		int num_formals = formals_names.size();
-		System.out.println("Formals: " + formals_names + " Number of Formals: " + num_formals);
 		for (int i = 0; i < num_formals; i++)
 		{
 			symbol_table.put(formals_names.get(i), -(num_formals - i));
@@ -84,8 +92,7 @@ public class BaliCompiler
 		f.check(')');  // must be an closing parenthesis
 		// BODY
 		String body = getBody(f, symbol_table);
-		System.out.println("Body: " + body);
-		return null;
+		return methodName + ":\n" + body;
 	}
 
 	/*
@@ -95,7 +102,6 @@ public class BaliCompiler
 	 */
 	static String getFormals(SamTokenizer f, ArrayList<String> formals_names)
 	{
-		System.out.println("getFormals");
 		// TYPE
 		f.check("int"); 
 		// ID
@@ -132,7 +138,6 @@ public class BaliCompiler
 	 */
 	static String getBody(SamTokenizer f, HashMap<String, Integer> symbol_table)
 	{
-		System.out.println("getBody");
 		// '{'
 		f.check('{');
 		// VAR_DECL*
@@ -143,7 +148,6 @@ public class BaliCompiler
 			varDecls += getVariableDeclaration(f, symbol_table, local_var_off);
 		}
 		int num_locals = local_var_off[0] - 2;
-		System.out.println("Variable Declaration Done: " + varDecls + " Number of Local Variables: " + num_locals);
 		// STMT*
 		String stmts = "";
 		String prologue = "ADDSP " + num_locals + "\n";
@@ -153,7 +157,6 @@ public class BaliCompiler
 		{
 			stmts += getStatement(f, symbol_table, fEnd_label);
 		}
-		System.out.println("Statement Done: " + stmts);
 		// '}'
 		f.check('}');
 		return prologue + varDecls + stmts + fEnd_label + ":\n" + epilogue;
@@ -166,13 +169,11 @@ public class BaliCompiler
 	 */
 	static String getVariableDeclaration(SamTokenizer f, HashMap<String, Integer> symbol_table, int[] local_var_off)
 	{
-		System.out.println("getVariableDeclaration");
 		String ret = "";
 		// TYPE
 		f.check("int");
 		// ID
 		String varName = getId(f);
-		System.out.println("Variable Name: " + varName);
 		// allocate space for local var on stack
 		symbol_table.put(varName, local_var_off[0]);
 		local_var_off[0]++;
@@ -180,7 +181,6 @@ public class BaliCompiler
 		// ('=' EXP)? (one or zero)
 		if (f.test('='))
 		{
-			System.out.println("Assignment");
 			// consume the '='
 			f.check('=');
 			// EXP
@@ -232,7 +232,6 @@ public class BaliCompiler
 				// ASSIGN, return, if, while, break
 				switch (f.getWord()) {
 					case "return":
-						System.out.println("Return Statement");
 						// STMT -> return EXP ';'
 						// EXP
 						String exp = getExp(f, symbol_table);
@@ -241,7 +240,6 @@ public class BaliCompiler
 						f.check(';');
 						return exp + "JUMP " + fEnd_label + "\n";
 					case "if":
-						System.out.println("If Statement");
 						// STMT -> if '(' EXP ')' STMT else STMT
 						// consume the if
 						f.check("if");
@@ -349,20 +347,17 @@ public class BaliCompiler
 	 */
 	static String getExp(SamTokenizer f, HashMap<String, Integer> symbol_table) 
 	{
-		System.out.println("getExp: " + f.peekAtKind());
 		if (f.peekAtKind() == TokenType.WORD) {
 			// LOCATION, LITERAL, METHOD
 			if (f.test("true") || f.test("false")) 
 			{
-				// LITERAL
-				System.out.println("Literal");
+				// EXP -> LITERAL
 				return getLiteral(f);
 			} 
 			else 
 			{
 				// LOCATION -> ID or METHOD -> ID
 				String reference = getId(f);
-				System.out.println("Location or Method: " + reference);
 				if (f.test('(')) 
 				{
 					// using EXP -> METHOD '(' ACTUALS? ')' production (function call)
@@ -379,11 +374,10 @@ public class BaliCompiler
 				}
 				// EXP -> LOCATION
 				int fbr_offset = symbol_table.get(reference);
-				return "LOADOFF " + fbr_offset + "\n";
+				return "PUSHOFF " + fbr_offset + "\n";
 			}
 		} else if (f.peekAtKind() == TokenType.INTEGER) {
-			// LITERAL
-			System.out.println("Literal");
+			// EXP -> LITERAL
 			return getLiteral(f);
 		}
 		// '('
@@ -408,7 +402,6 @@ public class BaliCompiler
 		}
 		
 		// EXP
-		System.out.println("Binary Operator");
 		exp = getExp(f, symbol_table);
 		String exp2 = "";
 		// '+', '-', '*', '/', '&', '|', '<', '>', '='
@@ -479,7 +472,6 @@ public class BaliCompiler
 	 */
 	static String getLiteral(SamTokenizer f)
 	{
-		System.out.println("getLiteral");
 		String literal = "";
 		if (f.test("true")) 
 		{
@@ -495,7 +487,6 @@ public class BaliCompiler
 		{
 			literal = "PUSHIMM " + f.getInt() + "\n";
 		}
-		System.out.println("Literal: " + literal);
 		return literal;
 	}
 
@@ -520,14 +511,20 @@ public class BaliCompiler
 	
 
 	public static void main(String[] args) {
-		if (args.length != 1) {
-            System.err.println("Usage: java BaliCompiler <filename>");
+		if (args.length != 2) {
+            System.err.println("Usage: java BaliCompiler <filename> <outputfile>");
             System.exit(1);
         }
 
         String filename = args[0];
+		String outputfile = args[1];
         System.out.println("Processing file: " + filename);
 		String pgm = compiler(filename);
-		System.out.println(pgm);
+		try (FileWriter writer = new FileWriter(outputfile)) { // Overwrites the file
+            writer.write(pgm);
+            System.out.println(outputfile + " written successfully.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 	}
 }

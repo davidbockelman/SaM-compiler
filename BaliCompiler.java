@@ -3,6 +3,7 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.StreamTokenizer;
 
 import edu.cornell.cs.sam.io.SamTokenizer;
 import edu.cornell.cs.sam.io.Tokenizer;
@@ -11,6 +12,32 @@ import edu.cornell.cs.sam.io.Tokenizer.TokenType;
 public class BaliCompiler
 {
 	private static int labelCount = 0;
+	private static int exit_code = 0;
+
+	static String getUnexpectedToken(SamTokenizer f)
+	{
+		if (f.peekAtKind() == TokenType.EOF)
+		{
+			return "EOF";
+		}
+		if (f.peekAtKind() == TokenType.WORD)
+		{
+			return "'" + f.getWord() + "'";
+		}
+		if (f.peekAtKind() == TokenType.INTEGER)
+		{
+			return "'" + Integer.toString(f.getInt()) + "'";
+		}
+		if (f.peekAtKind() == TokenType.CHARACTER)
+		{
+			return "'" + f.getWord() + "'";
+		}
+		if (f.peekAtKind() == TokenType.OPERATOR)
+		{
+			return "'" + Character.toString(f.getOp()) + "'";
+		}
+		return null;
+	}
 
 	static String compiler(String fileName) 
 	{
@@ -18,7 +45,7 @@ public class BaliCompiler
 		try 
 		{
 			SamTokenizer f = new SamTokenizer (fileName);
-			String pgm = getProgram(f);
+			String pgm = getProgram(f, fileName);
 			return pgm;
 		} 
 		catch (Exception e) 
@@ -33,7 +60,7 @@ public class BaliCompiler
 	 * Production:
 	 * PROGRAM -> METH_DECL*
 	 */
-	static String getProgram(SamTokenizer f)
+	static String getProgram(SamTokenizer f, String filename)
 	{
 		try
 		{
@@ -47,7 +74,8 @@ public class BaliCompiler
 		}
 		catch(Exception e)
 		{
-			System.out.println("Fatal error: could not compile program");
+			System.out.println("Fatal error: could not compile program.\n" + filename + ":" + f.lineNo() + ":\t" + e.getMessage());
+			exit_code = 1;
 			return "STOP\n";
 		}		
 	}
@@ -62,16 +90,14 @@ public class BaliCompiler
 		// TYPE
 		if (!f.check("int")) //must match at begining
 		{
-			System.out.println("Fatal error: could not compile program");
-			return "STOP\n";
+			throw new RuntimeException("Unknown type: " + getUnexpectedToken(f));
 		}
 		// ID
 		String methodName = getId(f); 
 		// '(' FORMALS? ')'
 		if (!f.check ('(')) // must be an opening parenthesis
 		{
-			System.out.println("Fatal error: could not compile program");
-			return "STOP\n";
+			throw new RuntimeException("Expected '(', found: " + getUnexpectedToken(f));
 		}
 		HashMap<String, Integer> symbol_table = new HashMap<String, Integer>();
 		ArrayList<String> formals_names = new ArrayList<String>();
@@ -85,7 +111,10 @@ public class BaliCompiler
 			symbol_table.put(formals_names.get(i), -(num_formals - i));
 		}
 		symbol_table.put("return", -(num_formals + 1));
-		f.check(')');  // must be an closing parenthesis
+		if (!f.check(')')) // must be a closing parenthesis
+		{
+			throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+		}
 		// BODY
 		String body = getBody(f, symbol_table);
 		return methodName + ":\n" + body;
@@ -99,7 +128,10 @@ public class BaliCompiler
 	static String getFormals(SamTokenizer f, ArrayList<String> formals_names)
 	{
 		// TYPE
-		f.check("int"); 
+		if (!f.check("int")) //must match at begining
+		{
+			throw new RuntimeException("Unknown type: " + getUnexpectedToken(f));
+		}
 		// ID
 		String formalName = getId(f);
 		formals_names.add(formalName);
@@ -109,7 +141,10 @@ public class BaliCompiler
 			// consume the comma
 			f.check(',');
 			// TYPE
-			f.check("int");
+			if (!f.check("int")) //must match at begining
+			{
+				throw new RuntimeException("Unknown type: " + getUnexpectedToken(f));
+			}
 			// ID
 			formalName = getId(f);
 			formals_names.add(formalName);
@@ -132,7 +167,10 @@ public class BaliCompiler
 	static String getBody(SamTokenizer f, HashMap<String, Integer> symbol_table)
 	{
 		// '{'
-		f.check('{');
+		if (!f.check('{')) // must be an opening brace
+		{
+			throw new RuntimeException("Expected '{', found: " + getUnexpectedToken(f));
+		}
 		// VAR_DECL*
 		String varDecls = "";
 		int[] local_var_off = {2};
@@ -151,7 +189,10 @@ public class BaliCompiler
 			stmts += getStatement(f, symbol_table, fEnd_label, null);
 		}
 		// '}'
-		f.check('}');
+		if (!f.check('}')) // must be a closing brace
+		{
+			throw new RuntimeException("Expected '}', found: " + getUnexpectedToken(f));
+		}
 		return prologue + varDecls + stmts + fEnd_label + ":\n" + epilogue;
 	}
 
@@ -164,7 +205,10 @@ public class BaliCompiler
 	{
 		String ret = "";
 		// TYPE
-		f.check("int");
+		if (!f.check("int")) //must match at begining
+		{
+			throw new RuntimeException("Unknown type: " + getUnexpectedToken(f));
+		}
 		// ID
 		String varName = getId(f);
 		// allocate space for local var on stack
@@ -187,7 +231,7 @@ public class BaliCompiler
 			// consume the comma
 			f.check(',');
 			// ID
-			varName = f.getString();
+			varName = getId(f);
 			// allocate space for local var on stack
 			symbol_table.put(varName, local_var_off[0]);
 			local_var_off[0]++;
@@ -203,7 +247,10 @@ public class BaliCompiler
 			}
 		}
 		// ';'
-		f.check(';');
+		if (!f.check(';')) // must be a semicolon
+		{
+			throw new RuntimeException("Expected ';', found: " + getUnexpectedToken(f));
+		}
 		return ret;
 	}
 
@@ -230,20 +277,32 @@ public class BaliCompiler
 						String exp = getExp(f, symbol_table);
 						// JUMP fEnd
 						// ';'
-						f.check(';');
+						if (!f.check(';')) // must be a semicolon
+						{
+							throw new RuntimeException("Expected ';', found: " + getUnexpectedToken(f));
+						}
 						return exp + "JUMP " + fEnd_label + "\n";
 					case "if":
 						// STMT -> if '(' EXP ')' STMT else STMT
 						// '('
-						f.check('(');
+						if (!f.check('(')) // must be an opening parenthesis
+						{
+							throw new RuntimeException("Expected '(', found: " + getUnexpectedToken(f));
+						}
 						// EXP
 						String c = getExp(f, symbol_table);
 						// ')'
-						f.check(')');
+						if (!f.check(')')) // must be a closing parenthesis
+						{
+							throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+						}
 						// STMT
 						String s1 = getStatement(f, symbol_table, fEnd_label, end_loop_label);
 						// else
-						f.check("else");
+						if (!f.check("else")) // must be an else
+						{
+							throw new RuntimeException("Expected 'else', found: " + getUnexpectedToken(f));
+						}
 						// STMT
 						String s2 = getStatement(f, symbol_table, fEnd_label, end_loop_label);
 						String l1 = "L" + labelCount++;
@@ -252,11 +311,17 @@ public class BaliCompiler
 					case "while":
 						// STMT -> while '(' EXP ')' STMT
 						// '('
-						f.check('(');
+						if (!f.check('(')) // must be an opening parenthesis
+						{
+							throw new RuntimeException("Expected '(', found: " + getUnexpectedToken(f));
+						}
 						// EXP
 						c = getExp(f, symbol_table);
 						// ')'
-						f.check(')');
+						if (!f.check(')')) // must be a closing parenthesis
+						{
+							throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+						}
 						// STMT
 						l1 = "L" + labelCount++;
 						l2 = "L" + labelCount++;
@@ -265,12 +330,14 @@ public class BaliCompiler
 					case "break":
 						// STMT -> break ';'
 						// ';'
-						// if (end_loop_label == null)
-						// {
-						// 	System.out.println("Fatal error: could not compile program");
-						// 	return "STOP\n";
-						// }
-						f.check(';');
+						if (end_loop_label == null)
+						{
+							throw new RuntimeException("break statement not in loop");
+						}
+						if (!f.check(';')) // must be a semicolon
+						{
+							throw new RuntimeException("Expected ';', found: " + getUnexpectedToken(f));
+						}
 						return "JUMP " + end_loop_label + "\n";
 					default:
 						// already consumed the location
@@ -278,10 +345,9 @@ public class BaliCompiler
 						// STMT -> ASSIGN ';'
 						String assign = getAssignment(f, symbol_table);
 						// ';'
-						if (!f.check(';'))
+						if (!f.check(';')) // must be a semicolon
 						{
-							System.out.println("Fatal error: could not compile program");
-							return "STOP\n";
+							throw new RuntimeException("Expected ';', found: " + getUnexpectedToken(f));
 						}
 						return assign;
 				}
@@ -296,7 +362,10 @@ public class BaliCompiler
 				else 
 				{
 					// STMT -> ';'
-					f.check(';');
+					if (!f.check(';')) // must be a semicolon
+					{
+						throw new RuntimeException("Expected ';', found: " + getUnexpectedToken(f));
+					}
 					return "";
 				}
 		}
@@ -311,7 +380,10 @@ public class BaliCompiler
 	static String getBlock(SamTokenizer f, HashMap<String, Integer> symbol_table, String fEnd_label, String end_loop_label)
 	{
 		// '{'
-		f.check('{');
+		if (!f.check('{')) // must be an opening brace
+		{
+			throw new RuntimeException("Expected '{', found: " + getUnexpectedToken(f));
+		}
 		// STMT*
 		String stmts = "";
 		while (f.peekAtKind() != TokenType.EOF && !f.test('}'))
@@ -319,7 +391,10 @@ public class BaliCompiler
 			stmts += getStatement(f, symbol_table, fEnd_label, end_loop_label);
 		}
 		// '}'
-		f.check('}');
+		if (!f.check('}')) // must be a closing brace
+		{
+			throw new RuntimeException("Expected '}', found: " + getUnexpectedToken(f));
+		}
 		return stmts;
 	}
 
@@ -333,7 +408,10 @@ public class BaliCompiler
 		// LOCATION
 		String location = getLocation(f);
 		// '='
-		f.check('=');
+		if (!f.check('=')) // must be an equals sign
+		{
+			throw new RuntimeException("Expected '=', found: " + getUnexpectedToken(f));
+		}
 		// EXP
 		String exp = getExp(f, symbol_table);
 		return exp + "STOREOFF " + symbol_table.get(location) + "\n";
@@ -399,7 +477,10 @@ public class BaliCompiler
 						actuals += getActuals(f, symbol_table, num_actuals);
 					}
 					// ')'
-					f.check(')');
+					if (!f.check(')')) // must be a closing parenthesis
+					{
+						throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+					}
 					String call_preamble = "PUSHIMM 0\n";
 					String call_postamble = "LINK\nJSR " + reference + "\nPOPFBR\nADDSP -" + num_actuals[0] + "\n";
 					return call_preamble + actuals + call_postamble;
@@ -413,7 +494,10 @@ public class BaliCompiler
 			return getLiteral(f);
 		}
 		// '('
-		f.check('(');
+		if (!f.check('(')) // must be an opening parenthesis
+		{
+			throw new RuntimeException("Expected '(', found: " + getUnexpectedToken(f));
+		}
 		String exp = "";
 		// '-' or '!'
 		if (f.test('-'))
@@ -421,7 +505,10 @@ public class BaliCompiler
 			// EXP -> '(''-' EXP')'
 			f.check('-');
 			exp = getExp(f, symbol_table);
-			f.check(')');
+			if (!f.check(')')) // must be a closing parenthesis
+			{
+				throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+			}
 			return exp + "PUSHIMM -1\n" + "TIMES\n";
 		}
 		else if (f.test('!'))
@@ -429,7 +516,10 @@ public class BaliCompiler
 			// EXP -> '(''!' EXP')'
 			f.check('!');
 			exp = getExp(f, symbol_table);
-			f.check(')');
+			if (!f.check(')')) // must be a closing parenthesis
+			{
+				throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+			}
 			return exp + "NOT\n";
 		}
 		
@@ -441,47 +531,74 @@ public class BaliCompiler
 			case '+':
 				exp2 = getExp(f, symbol_table);
 				// ')'
-				f.check(')');
+				if (!f.check(')')) // must be a closing parenthesis
+				{
+					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+				}
 				return exp + exp2 + "ADD\n";
 			case '-':
 				exp2 = getExp(f, symbol_table);
 				// ')'
-				f.check(')');
+				if (!f.check(')')) // must be a closing parenthesis
+				{
+					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+				}
 				return exp + exp2 + "SUB\n";
 			case '*':
 				exp2 = getExp(f, symbol_table);
 				// ')'
-				f.check(')');
+				if (!f.check(')')) // must be a closing parenthesis
+				{
+					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+				}
 				return exp + exp2 + "TIMES\n";
 			case '/':
 				exp2 = getExp(f, symbol_table);
 				// ')'
-				f.check(')');
+				if (!f.check(')')) // must be a closing parenthesis
+				{
+					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+				}
 				return exp + exp2 + "DIV\n";
 			case '&':
 				exp2 = getExp(f, symbol_table);
 				// ')'
-				f.check(')');
+				if (!f.check(')')) // must be a closing parenthesis
+				{
+					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+				}
 				return exp + exp2 + "AND\n";
 			case '|':
 				exp2 = getExp(f, symbol_table);
 				// ')'
-				f.check(')');
+				if (!f.check(')')) // must be a closing parenthesis
+				{
+					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+				}
 				return exp + exp2 + "OR\n";
 			case '<':
 				exp2 = getExp(f, symbol_table);
 				// ')'
-				f.check(')');
+				if (!f.check(')')) // must be a closing parenthesis
+				{
+					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+				}
 				return exp + exp2 + "LESS\n";
 			case '>':
 				exp2 = getExp(f, symbol_table);
 				// ')'
-				f.check(')');
+				if (!f.check(')')) // must be a closing parenthesis
+				{
+					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+				}
 				return exp + exp2 + "GREATER\n";
 			case '=':
 				exp2 = getExp(f, symbol_table);
 				// ')'
-				f.check(')');
+				if (!f.check(')')) // must be a closing parenthesis
+				{
+					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
+				}
 				return exp + exp2 + "EQUAL\n";
 			default:
 			// error
@@ -554,7 +671,7 @@ public class BaliCompiler
 		{
 			return f.getWord();
 		}
-		return null;
+		throw new RuntimeException("Expected an identifier, found: " + getUnexpectedToken(f));
 	}
 	
 
@@ -568,6 +685,10 @@ public class BaliCompiler
 		String outputfile = args[1];
         System.out.println("Processing file: " + filename);
 		String pgm = compiler(filename);
+		if (exit_code == 1)
+		{
+			System.exit(1);
+		}
 		try (FileWriter writer = new FileWriter(outputfile)) { // Overwrites the file
             writer.write(pgm);
             System.out.println(outputfile + " written successfully.");

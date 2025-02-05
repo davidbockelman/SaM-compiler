@@ -148,7 +148,7 @@ public class BaliCompiler
 		String epilogue = "STOREOFF " + symbol_table.get("return") + "\n" + "ADDSP -" + num_locals + "\n" + "JUMPIND\n";
 		while (f.peekAtKind() != TokenType.EOF && !f.test('}'))
 		{
-			stmts += getStatement(f, symbol_table, fEnd_label);
+			stmts += getStatement(f, symbol_table, fEnd_label, null);
 		}
 		// '}'
 		f.check('}');
@@ -218,7 +218,7 @@ public class BaliCompiler
           | BLOCK
           | ';'
 	 */
-	static String getStatement(SamTokenizer f, HashMap<String, Integer> symbol_table, String fEnd_label)
+	static String getStatement(SamTokenizer f, HashMap<String, Integer> symbol_table, String fEnd_label, String end_loop_label)
 	{
 		switch (f.peekAtKind()) {
 			case WORD:
@@ -234,8 +234,6 @@ public class BaliCompiler
 						return exp + "JUMP " + fEnd_label + "\n";
 					case "if":
 						// STMT -> if '(' EXP ')' STMT else STMT
-						// consume the if
-						f.check("if");
 						// '('
 						f.check('(');
 						// EXP
@@ -243,18 +241,16 @@ public class BaliCompiler
 						// ')'
 						f.check(')');
 						// STMT
-						String s1 = getStatement(f, symbol_table, fEnd_label);
+						String s1 = getStatement(f, symbol_table, fEnd_label, end_loop_label);
 						// else
 						f.check("else");
 						// STMT
-						String s2 = getStatement(f, symbol_table, fEnd_label);
+						String s2 = getStatement(f, symbol_table, fEnd_label, end_loop_label);
 						String l1 = "L" + labelCount++;
 						String l2 = "L" + labelCount++;
 						return c + "JUMPC " + l1 + "\n" + s2 + "JUMP " + l2 + "\n" + l1 + ":\n" + s1 + l2 + ":\n";
 					case "while":
 						// STMT -> while '(' EXP ')' STMT
-						// consume the while
-						f.check("while");
 						// '('
 						f.check('(');
 						// EXP
@@ -262,17 +258,20 @@ public class BaliCompiler
 						// ')'
 						f.check(')');
 						// STMT
-						s1 = getStatement(f, symbol_table, fEnd_label);
 						l1 = "L" + labelCount++;
 						l2 = "L" + labelCount++;
+						s1 = getStatement(f, symbol_table, fEnd_label, l2);
 						return l1 + ":\n" + c + "ISNIL\n" + "JUMPC " + l2 + "\n" + s1 + "JUMP " + l1 + "\n" + l2 + ":\n";
 					case "break":
 						// STMT -> break ';'
-						// consume the break
-						f.check("break");
 						// ';'
+						// if (end_loop_label == null)
+						// {
+						// 	System.out.println("Fatal error: could not compile program");
+						// 	return "STOP\n";
+						// }
 						f.check(';');
-						break;
+						return "JUMP " + end_loop_label + "\n";
 					default:
 						// already consumed the location
 						f.pushBack();
@@ -286,21 +285,20 @@ public class BaliCompiler
 						}
 						return assign;
 				}
-				break;
 		
 			case OPERATOR:
 				// BLOCK, ';'
 				if (f.test('{')) 
 				{
 					// STMT -> BLOCK
-					return getBlock(f, symbol_table, fEnd_label);
+					return getBlock(f, symbol_table, fEnd_label, end_loop_label);
 				} 
 				else 
 				{
 					// STMT -> ';'
 					f.check(';');
+					return "";
 				}
-				break;
 		}
 		return null;
 	}
@@ -310,7 +308,7 @@ public class BaliCompiler
 	 * Production:
 	 * BLOCK -> '{' STMT* '}'
 	 */
-	static String getBlock(SamTokenizer f, HashMap<String, Integer> symbol_table, String fEnd_label)
+	static String getBlock(SamTokenizer f, HashMap<String, Integer> symbol_table, String fEnd_label, String end_loop_label)
 	{
 		// '{'
 		f.check('{');
@@ -318,7 +316,7 @@ public class BaliCompiler
 		String stmts = "";
 		while (f.peekAtKind() != TokenType.EOF && !f.test('}'))
 		{
-			stmts += getStatement(f, symbol_table, fEnd_label);
+			stmts += getStatement(f, symbol_table, fEnd_label, end_loop_label);
 		}
 		// '}'
 		f.check('}');

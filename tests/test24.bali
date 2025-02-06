@@ -1,0 +1,10 @@
+// Combination of initializing and not initializing in one variable declaration
+// Should compile
+// Expected output: 6
+
+
+int main() {
+    int a = 1, b, c = 3;
+    b = 2;
+    return ((a + b) + c);
+}

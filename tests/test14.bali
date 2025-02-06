@@ -1,0 +1,11 @@
+// Method definition above function call
+// Should pass compilation
+// Expected output=5
+
+int foo(int x) {
+    return (x + 1);
+}
+
+int main() {
+    return foo(4);
+}

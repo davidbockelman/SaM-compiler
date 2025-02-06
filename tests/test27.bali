@@ -1,0 +1,10 @@
+// no type on a formal
+// Should not compile.
+
+int main() {
+    return 0;
+}
+
+int foo(int a, b) {
+    return 0;
+}

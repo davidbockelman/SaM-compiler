@@ -1,18 +1,4 @@
-// Expressions
+// Method declaration without braces
+// Should fail compilation
 
 int main()
-{
-    int c = 0;
-    int i = 0;
-    while ((i < 10))
-    {
-        c = (c + i);
-        i = (i + 1);
-        if ((c > 30)) break; else;
-    }
-    return c;
-}
-
-int foo(int a, int b) {
-    return (a+b);
-}

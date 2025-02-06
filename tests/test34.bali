@@ -1,0 +1,23 @@
+// triple nested loops with break
+// Should compile
+// Expected result: 500
+
+int main() {
+    int i = 0, j, k, c = 0;
+    while ((i < 10)) {
+        i = (i + 1);
+        j = 0;
+        while ((j < 10)) {
+            j = (j + 1);
+            k = 0;
+            while ((k < 10)) {
+                k = (k + 1);
+                c = (c + 1);
+            }
+            if ((j = 5)) {
+                break;
+            } else;
+        }
+    }
+    return c;
+}

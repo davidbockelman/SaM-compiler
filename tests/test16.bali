@@ -1,0 +1,11 @@
+// Non zero arguments supplied to zero argument function
+// Should not compile.
+
+
+int main() {
+    return foo(3);
+}
+
+int foo() {
+    return 1;
+}

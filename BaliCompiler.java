@@ -1,10 +1,13 @@
 import java.lang.reflect.Array;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.ArrayList;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StreamTokenizer;
+import java.util.Map;
 
+import edu.cornell.cs.sam.core.Sys;
 import edu.cornell.cs.sam.io.SamTokenizer;
 import edu.cornell.cs.sam.io.Tokenizer;
 import edu.cornell.cs.sam.io.Tokenizer.TokenType;
@@ -13,6 +16,9 @@ public class BaliCompiler
 {
 	private static int labelCount = 0;
 	private static int exit_code = 0;
+	private static HashMap<String, HashMap<String, Integer>> symbol_table = new HashMap<String, HashMap<String, Integer>>();
+	private static HashMap<String, Integer> method_table = new HashMap<String, Integer>();
+	private static HashMap<String, HashSet<Integer>> method_calls = new HashMap<String, HashSet<Integer>>();
 
 	static String getUnexpectedToken(SamTokenizer f)
 	{
@@ -55,6 +61,31 @@ public class BaliCompiler
 		}
 	}
 
+	static void checkFunctionCalls()
+	{
+		if (!method_table.containsKey("main"))
+		{
+			throw new RuntimeException("Main method not defined");
+		}
+		for (Map.Entry<String, HashSet<Integer>> entry : method_calls.entrySet())
+		{
+			String method = entry.getKey();
+			if (!method_table.containsKey(method))
+			{
+				throw new RuntimeException("Method " + method + " not defined");
+			}
+			int num_formals = method_table.get(method);
+			HashSet<Integer> calls = entry.getValue();
+			for (int num_actuals : calls)
+			{
+				if (num_actuals != num_formals)
+				{
+					throw new RuntimeException("Method " + method + " called with " + num_actuals + " arguments, expected " + num_formals);
+				}
+			}
+		}
+	}
+
 	/*
 	 * Parses PROGRAM non-terminal.
 	 * Production:
@@ -69,6 +100,7 @@ public class BaliCompiler
 			{
 				pgm += getMethodDeclaration(f);
 			}
+			checkFunctionCalls();
 			String call_main = "PUSHIMM 0\n" + "LINK\n" + "JSR main\n" + "POPFBR\n" + "STOP\n";
 			return call_main + pgm;
 		}
@@ -94,29 +126,35 @@ public class BaliCompiler
 		}
 		// ID
 		String methodName = getId(f); 
+		if (symbol_table.containsKey(methodName))
+		{
+			throw new RuntimeException("Method " + methodName + " already defined");
+		}
+		HashMap<String, Integer> method_symbol_table = new HashMap<String, Integer>();
+		symbol_table.put(methodName, method_symbol_table);
 		// '(' FORMALS? ')'
 		if (!f.check ('(')) // must be an opening parenthesis
 		{
 			throw new RuntimeException("Expected '(', found: " + getUnexpectedToken(f));
 		}
-		HashMap<String, Integer> symbol_table = new HashMap<String, Integer>();
 		ArrayList<String> formals_names = new ArrayList<String>();
 		if (f.test("int")) 
 		{
 			getFormals(f, formals_names);
 		}
 		int num_formals = formals_names.size();
+		method_table.put(methodName, num_formals);
 		for (int i = 0; i < num_formals; i++)
 		{
-			symbol_table.put(formals_names.get(i), -(num_formals - i));
+			method_symbol_table.put(formals_names.get(i), -(num_formals - i));
 		}
-		symbol_table.put("return", -(num_formals + 1));
+		method_symbol_table.put("return", -(num_formals + 1));
 		if (!f.check(')')) // must be a closing parenthesis
 		{
 			throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 		}
 		// BODY
-		String body = getBody(f, symbol_table);
+		String body = getBody(f, method_symbol_table);
 		return methodName + ":\n" + body;
 	}
 
@@ -211,9 +249,11 @@ public class BaliCompiler
 		}
 		// ID
 		String varName = getId(f);
+		if (symbol_table.containsKey(varName))
+		{
+			throw new RuntimeException("Variable " + varName + " already defined");
+		}
 		// allocate space for local var on stack
-		symbol_table.put(varName, local_var_off[0]);
-		local_var_off[0]++;
 		String exp = "";
 		// ('=' EXP)? (one or zero)
 		if (f.test('='))
@@ -222,8 +262,14 @@ public class BaliCompiler
 			f.check('=');
 			// EXP
 			exp = getExp(f, symbol_table);
+			
+			symbol_table.put(varName, local_var_off[0]);
+			local_var_off[0]++;
 			// store the value of EXP in the location of varName
 			ret += exp + "STOREOFF " + symbol_table.get(varName) + "\n";
+		} else {
+			symbol_table.put(varName, local_var_off[0]);
+			local_var_off[0]++;
 		}
 		// (',' ID ('=' EXP)?)*
 		while (f.test(',')) 
@@ -233,8 +279,10 @@ public class BaliCompiler
 			// ID
 			varName = getId(f);
 			// allocate space for local var on stack
-			symbol_table.put(varName, local_var_off[0]);
-			local_var_off[0]++;
+			if (symbol_table.containsKey(varName))
+			{
+				throw new RuntimeException("Variable " + varName + " already defined");
+			}
 			// ('=' EXP)? (one or zero)
 			if (f.test('='))
 			{
@@ -242,8 +290,13 @@ public class BaliCompiler
 				f.check('=');
 				// EXP
 				exp = getExp(f, symbol_table);
+				symbol_table.put(varName, local_var_off[0]);
+				local_var_off[0]++;
 				// store the value of EXP in the location of varName
 				ret += exp + "STOREOFF " + symbol_table.get(varName) + "\n";
+			} else {
+				symbol_table.put(varName, local_var_off[0]);
+				local_var_off[0]++;
 			}
 		}
 		// ';'
@@ -407,6 +460,10 @@ public class BaliCompiler
 	{
 		// LOCATION
 		String location = getLocation(f);
+		if (!symbol_table.containsKey(location))
+		{
+			throw new RuntimeException("Assignment to undeclared variable " + location);
+		}
 		// '='
 		if (!f.check('=')) // must be an equals sign
 		{
@@ -476,6 +533,18 @@ public class BaliCompiler
 					{
 						actuals += getActuals(f, symbol_table, num_actuals);
 					}
+					// record function name and num arguements supplied for error checking later
+					HashSet<Integer> calls;
+					if (method_calls.containsKey(reference))
+					{
+						calls = method_calls.get(reference);
+					}
+					else
+					{
+						calls = new HashSet<Integer>();
+						method_calls.put(reference, calls);
+					}
+					calls.add(num_actuals[0]);
 					// ')'
 					if (!f.check(')')) // must be a closing parenthesis
 					{
@@ -486,7 +555,12 @@ public class BaliCompiler
 					return call_preamble + actuals + call_postamble;
 				}
 				// EXP -> LOCATION
+				if (!symbol_table.containsKey(reference))
+				{
+					throw new RuntimeException("Variable " + reference + " not defined");
+				}
 				int fbr_offset = symbol_table.get(reference);
+				
 				return "PUSHOFF " + fbr_offset + "\n";
 			}
 		} else if (f.peekAtKind() == TokenType.INTEGER) {

@@ -1,0 +1,6 @@
+// Use of undefined local variable
+// Should not compile.
+
+int main() {
+    return x;
+}

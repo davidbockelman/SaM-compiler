@@ -1,0 +1,10 @@
+// Zero arguements supplied to function with non zero arguments
+// Should not compile.
+
+int main() {
+    return foo();
+}
+
+int foo(int x) {
+    return (x + 1);
+}

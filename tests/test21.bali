@@ -1,0 +1,9 @@
+// Variable declaration not at the beginning of the BODY
+// Should not compile.
+
+int main() {
+    int a;
+    a = 1;
+    int b;
+    return 0;
+}

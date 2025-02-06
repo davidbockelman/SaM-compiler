@@ -1,0 +1,6 @@
+// Unknown method type
+// Should not compile.
+
+void main() {
+    return 0;
+}

@@ -1,0 +1,10 @@
+// Duplicate main function
+// Should not compile.
+
+int main() {
+    return 0;
+}
+
+int main() {
+    return 1;
+}

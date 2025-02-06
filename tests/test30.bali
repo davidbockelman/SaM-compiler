@@ -1,0 +1,7 @@
+// testing break outside loop
+// Should not compile.
+
+int main() {
+    break;
+    return 0;
+}

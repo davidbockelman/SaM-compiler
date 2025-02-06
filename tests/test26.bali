@@ -1,0 +1,7 @@
+// Self reference in variable declaration
+// Should not compile.
+
+int main() {
+    int a = a;
+    return 0;
+}

@@ -1,0 +1,6 @@
+// Call to undefined function
+// Should not compile.
+
+int main() {
+    return foo();
+}

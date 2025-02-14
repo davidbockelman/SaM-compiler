@@ -37,11 +37,11 @@ $(X86_OBJECTS):
 
 # Run a specific test file
 compile: $(BIN)/$(EXECUTABLE).class
-	@if [ -z "$$1" ]; then \
-		echo "Usage: make run <filename>"; \
+	@if [ -z "$(test)" ]; then \
+		echo "Usage: make run test=<filename>"; \
 		exit 1; \
 	fi
-	$(JAVA) -cp $(CLASSPATH):$(BIN) $(EXECUTABLE) $(TESTS)/$$1 $(OUTPUT)
+	$(JAVA) -cp $(CLASSPATH):$(BIN) $(EXECUTABLE) $(TESTS)/$(test).bali $(OUTPUT)
 
 compile-x86: $(BIN)/$(EXECUTABLE_X86).class
 	@if [ -z "$(test)" ]; then \

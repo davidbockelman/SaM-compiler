@@ -2,3 +2,8 @@ lib
 .vscode
 bin
 output.sam
+output.asm
+io.o
+macro.o
+tmp.o
+a.out

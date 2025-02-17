@@ -611,6 +611,8 @@ public class BaliCompiler_x86
 		// EXP
 		exp = getExp(f, symbol_table);
 		String exp2 = "";
+		String save_exp1 = "push eax\n";
+		String restore_exp1 = "mov ebx, eax\npop eax\n";
 		// '+', '-', '*', '/', '&', '|', '<', '>', '='
 		switch (f.getOp()) {
 			case '+':
@@ -620,7 +622,7 @@ public class BaliCompiler_x86
 				{
 					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 				}
-				return exp + "push eax\n" + exp2 + "mov ebx, eax\npop eax\nadd eax, ebx\n";
+				return exp + save_exp1 + exp2 + restore_exp1 + "add eax, ebx\n";
 			case '-':
 				exp2 = getExp(f, symbol_table);
 				// ')'
@@ -628,7 +630,7 @@ public class BaliCompiler_x86
 				{
 					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 				}
-				return exp + exp2 + "SUB\n";
+				return exp + save_exp1 + exp2 + restore_exp1 + "sub eax, ebx\n";
 			case '*':
 				exp2 = getExp(f, symbol_table);
 				// ')'
@@ -636,7 +638,7 @@ public class BaliCompiler_x86
 				{
 					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 				}
-				return exp + exp2 + "TIMES\n";
+				return exp + save_exp1 + exp2 + restore_exp1 + "imul eax, ebx\n";
 			case '/':
 				exp2 = getExp(f, symbol_table);
 				// ')'
@@ -644,7 +646,7 @@ public class BaliCompiler_x86
 				{
 					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 				}
-				return exp + exp2 + "DIV\n";
+				return exp + save_exp1 + exp2 + restore_exp1 + "idiv ebx\n";
 			case '&':
 				exp2 = getExp(f, symbol_table);
 				// ')'
@@ -652,7 +654,7 @@ public class BaliCompiler_x86
 				{
 					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 				}
-				return exp + exp2 + "AND\n";
+				return exp + save_exp1 + exp2 + restore_exp1 + "and eax, ebx\n";
 			case '|':
 				exp2 = getExp(f, symbol_table);
 				// ')'
@@ -660,7 +662,7 @@ public class BaliCompiler_x86
 				{
 					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 				}
-				return exp + exp2 + "OR\n";
+				return exp + save_exp1 + exp2 + restore_exp1 + "or eax, ebx\n";
 			case '<':
 				exp2 = getExp(f, symbol_table);
 				// ')'

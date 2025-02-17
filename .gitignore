@@ -7,3 +7,4 @@ io.o
 macro.o
 tmp.o
 a.out
+sample_fact.asm

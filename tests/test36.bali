@@ -1,0 +1,7 @@
+// simple test for x86 generation
+// should compile
+// Expected output=8
+
+int main() {
+    return (5 + 3);
+}

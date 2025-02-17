@@ -73,3 +73,7 @@ submission: $(BIN)/$(EXECUTABLE).class
 # Clean compiled files
 clean:
 	rm -rf $(BIN)/*
+	rm -f $(OUTPUT)
+	rm -f $(OUTPUT_X86)
+	rm -f a.out
+	

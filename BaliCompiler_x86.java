@@ -63,7 +63,7 @@ public class BaliCompiler_x86
 
 	static void checkFunctionCalls()
 	{
-		if (!method_table.containsKey("main"))
+		if (!method_table.containsKey("CMAIN"))
 		{
 			throw new RuntimeException("Main method not defined");
 		}
@@ -95,14 +95,21 @@ public class BaliCompiler_x86
 	{
 		try
 		{
-			String pgm="";
+			String pgm="%include \"io.inc\"\n" +
+						"section .text\n" +
+						"global CMAIN\n" +
+						"pEnd:\n" +
+						"PRINT_DEC 4, eax\n" +
+						"NEWLINE\n" +
+						"mov eax, 0\n" +
+						"pop ebp\n" +
+						"ret\n";
 			while(f.peekAtKind()!=TokenType.EOF)
 			{
 				pgm += getMethodDeclaration(f);
 			}
 			checkFunctionCalls();
-			String call_main = "PUSHIMM 0\n" + "LINK\n" + "JSR main\n" + "POPFBR\n" + "STOP\n";
-			return call_main + pgm;
+			return pgm;
 		}
 		catch(Exception e)
 		{
@@ -130,6 +137,9 @@ public class BaliCompiler_x86
 		{
 			throw new RuntimeException("Method " + methodName + " already defined");
 		}
+		if (methodName.equals("main")) {
+			methodName = "CMAIN";
+		}
 		HashMap<String, Integer> method_symbol_table = new HashMap<String, Integer>();
 		symbol_table.put(methodName, method_symbol_table);
 		// '(' FORMALS? ')'
@@ -154,7 +164,7 @@ public class BaliCompiler_x86
 			throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 		}
 		// BODY
-		String body = getBody(f, method_symbol_table);
+		String body = getBody(f, method_symbol_table, true);
 		return methodName + ":\n" + body;
 	}
 
@@ -202,7 +212,7 @@ public class BaliCompiler_x86
 	 * Production:
 	 * BODY -> '{' VAR_DECL* STMT* '}'
 	 */
-	static String getBody(SamTokenizer f, HashMap<String, Integer> symbol_table)
+	static String getBody(SamTokenizer f, HashMap<String, Integer> symbol_table, boolean is_main)
 	{
 		// '{'
 		if (!f.check('{')) // must be an opening brace
@@ -219,9 +229,10 @@ public class BaliCompiler_x86
 		int num_locals = local_var_off[0] - 2;
 		// STMT*
 		String stmts = "";
-		String prologue = "ADDSP " + num_locals + "\n";
+		String prologue = "push ebp\nmov ebp, esp\n";
 		String fEnd_label = "fEnd" + labelCount++;
-		String epilogue = "STOREOFF " + symbol_table.get("return") + "\n" + "ADDSP -" + num_locals + "\n" + "JUMPIND\n";
+		String epilogue = "mov ebx, -" + num_locals + "\nadd esp, ebx\n";
+		epilogue += is_main ? "jmp pEnd\n" : "pop ebp\nret\n";
 		while (f.peekAtKind() != TokenType.EOF && !f.test('}'))
 		{
 			stmts += getStatement(f, symbol_table, fEnd_label, null);
@@ -334,7 +345,7 @@ public class BaliCompiler_x86
 						{
 							throw new RuntimeException("Expected ';', found: " + getUnexpectedToken(f));
 						}
-						return exp + "JUMP " + fEnd_label + "\n";
+						return exp + "jmp " + fEnd_label + "\n";
 					case "if":
 						// STMT -> if '(' EXP ')' STMT else STMT
 						// '('
@@ -609,7 +620,7 @@ public class BaliCompiler_x86
 				{
 					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 				}
-				return exp + exp2 + "ADD\n";
+				return exp + "push eax\n" + exp2 + "mov ebx, eax\npop eax\nadd eax, ebx\n";
 			case '-':
 				exp2 = getExp(f, symbol_table);
 				// ')'
@@ -715,16 +726,16 @@ public class BaliCompiler_x86
 		if (f.test("true")) 
 		{
 			f.check("true");
-			literal = "PUSHIMM 1\n";
+			literal = "mov eax, 1\n";
 		}
 		else if (f.test("false")) 
 		{
 			f.check("false");
-			literal = "PUSHIMM 0\n";
+			literal = "mov eax, 0\n";
 		}
 		else 
 		{
-			literal = "PUSHIMM " + f.getInt() + "\n";
+			literal = "mov eax, " + f.getInt() + "\n";
 		}
 		return literal;
 	}

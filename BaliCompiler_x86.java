@@ -646,7 +646,7 @@ public class BaliCompiler_x86
 				{
 					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 				}
-				return exp + save_exp1 + exp2 + restore_exp1 + "idiv ebx\n";
+				return exp + save_exp1 + exp2 + restore_exp1 + "mov edx, 0\nidiv ebx\n";
 			case '&':
 				exp2 = getExp(f, symbol_table);
 				// ')'
@@ -665,28 +665,55 @@ public class BaliCompiler_x86
 				return exp + save_exp1 + exp2 + restore_exp1 + "or eax, ebx\n";
 			case '<':
 				exp2 = getExp(f, symbol_table);
+				String l1 = "L" + labelCount++;
+				String l2 = "L" + labelCount++;
+				String less = "cmp eax, ebx\n" +
+							  "jl " + l1 + "\n" +
+							  "mov eax, 0\n" +
+							  "jmp " + l2 + "\n" +
+							  l1 + ":\n" +
+							  "mov eax, 1\n" +
+							  l2 + ":\n";
 				// ')'
 				if (!f.check(')')) // must be a closing parenthesis
 				{
 					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 				}
-				return exp + exp2 + "LESS\n";
+				return exp + save_exp1 + exp2 + restore_exp1 + less;
 			case '>':
 				exp2 = getExp(f, symbol_table);
+				l1 = "L" + labelCount++;
+				l2 = "L" + labelCount++;
+				String greater = "cmp eax, ebx\n" +
+								 "jg " + l1 + "\n" +
+								 "mov eax, 0\n" +
+								 "jmp " + l2 + "\n" +
+								 l1 + ":\n" +
+								 "mov eax, 1\n" +
+								 l2 + ":\n";
 				// ')'
 				if (!f.check(')')) // must be a closing parenthesis
 				{
 					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 				}
-				return exp + exp2 + "GREATER\n";
+				return exp + save_exp1 + exp2 + restore_exp1 + greater;
 			case '=':
 				exp2 = getExp(f, symbol_table);
+				l1 = "L" + labelCount++;
+				l2 = "L" + labelCount++;
+				String equal = "cmp eax, ebx\n" +
+							   "je " + l1 + "\n" +
+							   "mov eax, 0\n" +
+							   "jmp " + l2 + "\n" +
+							   l1 + ":\n" +
+							   "mov eax, 1\n" +
+							   l2 + ":\n";
 				// ')'
 				if (!f.check(')')) // must be a closing parenthesis
 				{
 					throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 				}
-				return exp + exp2 + "EQUAL\n";
+				return exp + save_exp1 + exp2 + restore_exp1 + equal;
 			default:
 			// error
 				return null;

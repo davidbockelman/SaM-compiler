@@ -66,6 +66,9 @@ run-x86:
 	fi
 	./a.out
 
+# Do all x86 steps in one
+x86: compile-x86 assemble-x86 run-x86
+
 # Create a submission jar
 submission: $(BIN)/$(EXECUTABLE).class
 	jar cvfe $(SUBMISSION) $(EXECUTABLE) -C $(BIN) .

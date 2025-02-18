@@ -371,7 +371,7 @@ public class BaliCompiler_x86
 						String s2 = getStatement(f, symbol_table, fEnd_label, end_loop_label);
 						String l1 = "L" + labelCount++;
 						String l2 = "L" + labelCount++;
-						return c + "JUMPC " + l1 + "\n" + s2 + "JUMP " + l2 + "\n" + l1 + ":\n" + s1 + l2 + ":\n";
+						return c + "cmp eax, 0\njne " + l1 + "\n" + s2 + "jmp " + l2 + "\n" + l1 + ":\n" + s1 + l2 + ":\n";
 					case "while":
 						// STMT -> while '(' EXP ')' STMT
 						// '('

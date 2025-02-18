@@ -4,5 +4,10 @@
 
 int main() {
     int a = 3;
-    return a;
+    int b = 2;
+    if ((3 = 3)) {
+        return a;
+    } else {
+        return b;
+    }
 }

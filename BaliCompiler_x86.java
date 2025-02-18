@@ -390,7 +390,7 @@ public class BaliCompiler_x86
 						l1 = "L" + labelCount++;
 						l2 = "L" + labelCount++;
 						s1 = getStatement(f, symbol_table, fEnd_label, l2);
-						return l1 + ":\n" + c + "ISNIL\n" + "JUMPC " + l2 + "\n" + s1 + "JUMP " + l1 + "\n" + l2 + ":\n";
+						return l1 + ":\n" + c + "cmp eax, 0\nje " + l2 + "\n" + s1 + "jmp " + l1 + "\n" + l2 + ":\n";
 					case "break":
 						// STMT -> break ';'
 						// ';'
@@ -402,7 +402,7 @@ public class BaliCompiler_x86
 						{
 							throw new RuntimeException("Expected ';', found: " + getUnexpectedToken(f));
 						}
-						return "JUMP " + end_loop_label + "\n";
+						return "jmp " + end_loop_label + "\n";
 					default:
 						// already consumed the location
 						f.pushBack();
@@ -482,7 +482,7 @@ public class BaliCompiler_x86
 		}
 		// EXP
 		String exp = getExp(f, symbol_table);
-		return exp + "STOREOFF " + symbol_table.get(location) + "\n";
+		return exp + "mov [ebp+(" + symbol_table.get(location) + ")], eax\n";
 	}
 
 	/*

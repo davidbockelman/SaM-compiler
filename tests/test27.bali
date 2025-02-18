@@ -1,3 +1,4 @@
+// *Bad testcase*
 // no type on a formal
 // Should not compile.
 

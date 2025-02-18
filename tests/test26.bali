@@ -1,3 +1,4 @@
+// *Bad testcase*
 // Self reference in variable declaration
 // Should not compile.
 

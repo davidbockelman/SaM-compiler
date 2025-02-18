@@ -1,3 +1,4 @@
+// *Bad testcase*
 // Use of undefined local variable
 // Should not compile.
 

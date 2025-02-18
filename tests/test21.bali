@@ -1,3 +1,4 @@
+// *Bad testcase*
 // Variable declaration not at the beginning of the BODY
 // Should not compile.
 

@@ -4,7 +4,7 @@ CLASSPATH = lib/SaM-2.6.2
 SRC = BaliCompiler.java
 SRC_X86 = BaliCompiler_x86.java
 BIN = bin
-TESTS = tests
+TESTS_DIR = tests
 EXECUTABLE = BaliCompiler
 EXECUTABLE_X86 = BaliCompiler_x86
 OUTPUT = output.sam
@@ -12,6 +12,8 @@ OUTPUT_X86 = output.asm
 X86_OBJECTS = macro.o io.o
 INTERPRETER = edu/cornell/cs/sam/ui/SamText
 SUBMISSION = compiler.jar
+
+NUM_TESTS := $(shell ls tests/test*.bali | wc -l)
 
 # Ensure the bin directory exists
 $(BIN):
@@ -41,14 +43,14 @@ compile: $(BIN)/$(EXECUTABLE).class
 		echo "Usage: make run test=<filename>"; \
 		exit 1; \
 	fi
-	$(JAVA) -cp $(CLASSPATH):$(BIN) $(EXECUTABLE) $(TESTS)/$(test).bali $(OUTPUT)
+	$(JAVA) -cp $(CLASSPATH):$(BIN) $(EXECUTABLE) $(TESTS_DIR)/$(test).bali $(OUTPUT)
 
 compile-x86: $(BIN)/$(EXECUTABLE_X86).class
 	@if [ -z "$(test)" ]; then \
 		echo "Usage: make run-x86 test=<filename>"; \
 		exit 1; \
 	fi
-	$(JAVA) -cp $(CLASSPATH):$(BIN) $(EXECUTABLE_X86) $(TESTS)/$(test).bali $(OUTPUT_X86)
+	$(JAVA) -cp $(CLASSPATH):$(BIN) $(EXECUTABLE_X86) $(TESTS_DIR)/$(test).bali $(OUTPUT_X86)
 
 # Run the SaM interpreter on the output file
 interpret: $(BIN)/$(INTERPRETER).class $(OUTPUT)
@@ -68,6 +70,33 @@ run-x86:
 
 # Do all x86 steps in one
 x86: compile-x86 assemble-x86 run-x86
+
+# Run all tests
+run-all-x86:
+	@count = 0; \
+	for i in $$(seq 1 $(NUM_TESTS)); do \
+		echo "Running test $$i..."; \
+		if grep -q '// \*Bad testcase\*' tests/test$$i.bali; then \
+			make x86 test=test$$i; \
+			if [ $$? -ne 0 ]; then \
+				echo "Test$$i passed (expected failure)"; \
+				count=$$((count + 1)); \
+			else \
+				echo "Test$$i failed (expected failure)"; \
+			fi; \
+		else \
+			expected=$$(grep -oP '// Expected result: \K.*' tests/test$$i.bali); \
+			actual=$$(make x86 test=test$$i | awk '/^\.\/a\.out$$/{getline; print}'); \
+			if [ "$$actual" = "$$expected" ]; then \
+				echo "Test$$i passed (expected success: $$expected)"; \
+				count=$$((count + 1)); \
+			else \
+				echo "Test$$i failed (expected: $$expected, got: $$actual)"; \
+			fi; \
+		fi; \
+	done; \
+	echo "Passed $$count out of $(NUM_TESTS) tests."
+
 
 # Create a submission jar
 submission: $(BIN)/$(EXECUTABLE).class

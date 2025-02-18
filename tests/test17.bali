@@ -1,3 +1,4 @@
+// *Bad testcase*
 // Zero arguements supplied to function with non zero arguments
 // Should not compile.
 

@@ -1,6 +1,7 @@
+// *Good testcase*
 // Combination of initializing and not initializing in one variable declaration
 // Should compile
-// Expected output: 6
+// Expected result: 6
 
 
 int main() {

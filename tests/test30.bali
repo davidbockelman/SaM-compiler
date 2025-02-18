@@ -1,3 +1,4 @@
+// *Bad testcase*
 // testing break outside loop
 // Should not compile.
 

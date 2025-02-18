@@ -1,3 +1,4 @@
+// *Good testcase*
 // testing break in loop
 // Should compile.
 // Expected result: 5

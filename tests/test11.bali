@@ -1,3 +1,4 @@
+// *Bad testcase*
 // Method declaration without braces
 // Should fail compilation
 

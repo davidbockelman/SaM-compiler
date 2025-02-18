@@ -1,3 +1,4 @@
+// *Good testcase*
 // nested blocks with statements
 // Should compile
 // Expected result: 6

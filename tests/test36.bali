@@ -1,6 +1,7 @@
+// *Good testcase*
 // simple test for x86 generation
 // should compile
-// Expected output=8
+// Expected result: 55
 
 int main() {
     return fib(9);

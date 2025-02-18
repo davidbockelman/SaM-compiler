@@ -1,6 +1,7 @@
+// *Good testcase*
 // Method definition above function call
 // Should pass compilation
-// Expected output=5
+// Expected result: 5
 
 int foo(int x) {
     return (x + 1);

@@ -1,3 +1,4 @@
+// *Bad testcase*
 // no comma between formals
 // Should not compile.
 

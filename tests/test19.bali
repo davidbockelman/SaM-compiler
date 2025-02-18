@@ -1,3 +1,4 @@
+// *Bad testcase*
 // Call to undefined function
 // Should not compile.
 

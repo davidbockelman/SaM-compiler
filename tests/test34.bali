@@ -1,3 +1,4 @@
+// *Good testcase*
 // triple nested loops with break
 // Should compile
 // Expected result: 500

@@ -1,3 +1,4 @@
+// *Bad testcase*
 // Duplicate definitions of local variable
 // Should not compile.
 

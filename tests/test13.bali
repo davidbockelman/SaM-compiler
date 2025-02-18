@@ -1,3 +1,4 @@
+// *Bad testcase*
 // Duplicate main function
 // Should not compile.
 

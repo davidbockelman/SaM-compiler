@@ -1,3 +1,4 @@
+// *Bad testcase*
 // Non zero arguments supplied to zero argument function
 // Should not compile.
 

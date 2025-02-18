@@ -137,8 +137,10 @@ public class BaliCompiler_x86
 		{
 			throw new RuntimeException("Method " + methodName + " already defined");
 		}
+		boolean is_main = false;
 		if (methodName.equals("main")) {
 			methodName = "CMAIN";
+			is_main = true;
 		}
 		HashMap<String, Integer> method_symbol_table = new HashMap<String, Integer>();
 		symbol_table.put(methodName, method_symbol_table);
@@ -156,7 +158,7 @@ public class BaliCompiler_x86
 		method_table.put(methodName, num_formals);
 		for (int i = 0; i < num_formals; i++)
 		{
-			method_symbol_table.put(formals_names.get(i), -(num_formals - i));
+			method_symbol_table.put(formals_names.get(i), (num_formals - i)*4 + 4);
 		}
 		method_symbol_table.put("return", -(num_formals + 1));
 		if (!f.check(')')) // must be a closing parenthesis
@@ -164,7 +166,7 @@ public class BaliCompiler_x86
 			throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 		}
 		// BODY
-		String body = getBody(f, method_symbol_table, true);
+		String body = getBody(f, method_symbol_table, is_main);
 		return methodName + ":\n" + body;
 	}
 
@@ -561,9 +563,8 @@ public class BaliCompiler_x86
 					{
 						throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 					}
-					String call_preamble = "PUSHIMM 0\n";
-					String call_postamble = "LINK\nJSR " + reference + "\nPOPFBR\nADDSP -" + num_actuals[0] + "\n";
-					return call_preamble + actuals + call_postamble;
+					String call_postamble = "call " + reference + "\n" + "add esp, " + num_actuals[0]*4 + "\n";
+					return actuals + call_postamble;
 				}
 				// EXP -> LOCATION
 				if (!symbol_table.containsKey(reference))
@@ -738,6 +739,7 @@ public class BaliCompiler_x86
 		num_actuals[0] = 0;
 		// EXP
 		String exp = getExp(f, symbol_table);
+		exp += "push eax\n";
 		num_actuals[0]++;
 		while (f.test(',')) 
 		{
@@ -745,6 +747,8 @@ public class BaliCompiler_x86
 			f.check(',');
 			// EXP
 			exp += getExp(f, symbol_table);
+			// push onto stack
+			exp += "push eax\n";
 			num_actuals[0]++;
 		}
 		return exp;

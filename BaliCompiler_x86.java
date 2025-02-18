@@ -221,17 +221,17 @@ public class BaliCompiler_x86
 		}
 		// VAR_DECL*
 		String varDecls = "";
-		int[] local_var_off = {2};
+		int[] local_var_off = {-4};
 		while (f.test("int")) 
 		{
 			varDecls += getVariableDeclaration(f, symbol_table, local_var_off);
 		}
-		int num_locals = local_var_off[0] - 2;
+		int num_locals = ((-local_var_off[0]) - 4) / 4;
 		// STMT*
 		String stmts = "";
-		String prologue = "push ebp\nmov ebp, esp\n";
+		String prologue = "push ebp\nmov ebp, esp\nadd esp, -" + num_locals*4 + "\n";
 		String fEnd_label = "fEnd" + labelCount++;
-		String epilogue = "mov ebx, -" + num_locals + "\nadd esp, ebx\n";
+		String epilogue = "mov ebx, " + num_locals*4 + "\nadd esp, ebx\n";
 		epilogue += is_main ? "jmp pEnd\n" : "pop ebp\nret\n";
 		while (f.peekAtKind() != TokenType.EOF && !f.test('}'))
 		{
@@ -275,12 +275,12 @@ public class BaliCompiler_x86
 			exp = getExp(f, symbol_table);
 			
 			symbol_table.put(varName, local_var_off[0]);
-			local_var_off[0]++;
+			local_var_off[0] -= 4;
 			// store the value of EXP in the location of varName
-			ret += exp + "STOREOFF " + symbol_table.get(varName) + "\n";
+			ret += exp + "mov [ebp+(" + symbol_table.get(varName) + ")], eax\n";
 		} else {
 			symbol_table.put(varName, local_var_off[0]);
-			local_var_off[0]++;
+			local_var_off[0] -= 4;
 		}
 		// (',' ID ('=' EXP)?)*
 		while (f.test(',')) 
@@ -302,12 +302,12 @@ public class BaliCompiler_x86
 				// EXP
 				exp = getExp(f, symbol_table);
 				symbol_table.put(varName, local_var_off[0]);
-				local_var_off[0]++;
+				local_var_off[0] -= 4;
 				// store the value of EXP in the location of varName
-				ret += exp + "STOREOFF " + symbol_table.get(varName) + "\n";
+				ret += exp + "mov [ebp" + symbol_table.get(varName).toString() + "], eax\n";
 			} else {
 				symbol_table.put(varName, local_var_off[0]);
-				local_var_off[0]++;
+				local_var_off[0] -= 4;
 			}
 		}
 		// ';'
@@ -571,8 +571,7 @@ public class BaliCompiler_x86
 					throw new RuntimeException("Variable " + reference + " not defined");
 				}
 				int fbr_offset = symbol_table.get(reference);
-				
-				return "PUSHOFF " + fbr_offset + "\n";
+				return "mov eax, [ebp+(" + fbr_offset + ")]\n";
 			}
 		} else if (f.peekAtKind() == TokenType.INTEGER) {
 			// EXP -> LITERAL
@@ -594,18 +593,27 @@ public class BaliCompiler_x86
 			{
 				throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 			}
-			return exp + "PUSHIMM -1\n" + "TIMES\n";
+			return exp + "neg eax\n";
 		}
 		else if (f.test('!'))
 		{
 			// EXP -> '(''!' EXP')'
 			f.check('!');
 			exp = getExp(f, symbol_table);
+			String l1 = "L" + labelCount++;
+			String l2 = "L" + labelCount++;
+			String not = "cmp eax, 0\n" +
+						 "je " + l1 + "\n" +
+						 "mov eax, 0\n" +
+						 "jmp " + l2 + "\n" +
+						 l1 + ":\n" +
+						 "mov eax, 1\n" +
+						 l2 + ":\n";
 			if (!f.check(')')) // must be a closing parenthesis
 			{
 				throw new RuntimeException("Expected ')', found: " + getUnexpectedToken(f));
 			}
-			return exp + "NOT\n";
+			return exp + not;
 		}
 		
 		// EXP
